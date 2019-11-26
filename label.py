@@ -3,18 +3,25 @@ import sys       # Работа с аргументами, переданным�
 import docx      # Работа с .docx файлами 
 import io
 import os
-import time
 from PIL import Image
 
 
 def is_windows_64bit():
+    """ 
+        Опеределяет архитектуру ОС.
+        Возвращает True, если архитектура x64.
+    """
     if 'PROCESSOR_ARCHITEW6432' in os.environ:
         return True
     return os.environ['PROCESSOR_ARCHITECTURE'].endswith('64')
 
 
 def main(file, title_len=60, title_size=8):
-
+    """
+        Заполняет словарь с данными из реферата 
+        и формирует обложки для подлинника и дубликата CD
+    """
+    
     try:
         document = docx.Document(file)  # Открытие docx файла
     except Exception as error:
@@ -22,7 +29,7 @@ def main(file, title_len=60, title_size=8):
         sys.exit()
   
     labels = dict()   # Словарь с данными из считанного docx файла
-    
+        
     table = document.tables[0]  # Вынимаем таблицу с данными
     
     # for row in table.rows:
@@ -43,35 +50,57 @@ def main(file, title_len=60, title_size=8):
     # Список словарей для каждого тома
     disks = []
 
+    # Находим необходимые строки в таблице реферата
+    for key in labels.keys():
+        if "регистрационный" in key.lower():
+            regNum = key
+            continue
+        elif "название" in key.lower():
+            name = key
+            continue   
+        elif "децимальный" in key.lower():
+            decimalNum = key
+            continue
+        elif "рассылка" in key.lower():
+            cdType = key
+            continue
+        elif "контрольная" in key.lower():
+            ksum = key
+
+    # Проверяем, что все значения для полей диска присутствуют в реферате
+    if regNum and name and decimalNum and cdType and ksum:
+        pass      
+
     while volumes:
 
         disks.append(dict())    # Добавляем новый словарь для тома
-
+       
         # Заполнение словаря тома 
-        disks[volumes-1]["Регистрационный номер:"] = labels["Регистрационный номер:"]
-        
-        disks[volumes-1]["Название программы/документа/документации:"] = labels["Название программы/документа/документации:"] + ("." if labels["Название программы/документа/документации:"][-1] != "." else "")        
+        disks[volumes-1][regNum] = labels[regNum]
+       # 
+        disks[volumes-1][name] = labels[name] + ("." if labels[name][-1] != "." else "")        
         if "Том " + str(volumes) + ":" in labels.keys():
-            disks[volumes-1]["Название программы/документа/документации:"] = disks[volumes-1]["Название программы/документа/документации:"]+ " " + labels["Том " + str(volumes) + ":"] + ("." if labels["Том " + str(volumes) + ":"][-1] != "." else "")
+            disks[volumes-1][name] = disks[volumes-1][name]+ " " + labels["Том " + str(volumes) + ":"] + ("." if labels["Том " + str(volumes) + ":"][-1] != "." else "")
 
-        disks[volumes-1]["Децимальный номер (УДК): № версии, редакции:"] = labels["Децимальный номер (УДК): № версии, редакции:"]        
+        disks[volumes-1][decimalNum] = labels[decimalNum]        
         if "Том " + str(volumes) + ":_" in labels.keys():
-            disks[volumes-1]["Децимальный номер (УДК): № версии, редакции:"] = disks[volumes-1]["Децимальный номер (УДК): № версии, редакции:"] + labels["Том " + str(volumes) + ":_"]
+            disks[volumes-1][decimalNum] = disks[volumes-1][decimalNum] + labels["Том " + str(volumes) + ":_"]
 
         # Находим тип носителя (CD, DVD и т.п.)
-        words = labels["Рассылка (общее кол-во дисков) (шт.):"].split()
+        words = labels[cdType].split()
         for word in words:
             if "D" in word:
                 s = word
                 break
         
-        disks[volumes-1]["Рассылка (общее кол-во дисков) (шт.):"] = s
+        disks[volumes-1][cdType] = s
 
-        disks[volumes-1]["Контрольная характеристика (сумма)"] = labels["Контрольная характеристика (сумма)"]        
+        disks[volumes-1][ksum] = labels[ksum]        
         if "Том " + str(volumes) + ":___" in labels.keys():
-            disks[volumes-1]["Контрольная характеристика (сумма)"] = disks[volumes-1]["Контрольная характеристика (сумма)"] + labels["Том " + str(volumes) + ":___"]
-
-        if "Том " + str(volumes+1) + ":" in labels.keys():      # Если находим метку "Том Х:" - увеличиваем кол-во томов к печати
+            disks[volumes-1][ksum] = disks[volumes-1][ksum] + labels["Том " + str(volumes) + ":___"]
+            
+        # Если находим метку "Том Х:" - увеличиваем кол-во томов к печати
+        if "Том " + str(volumes+1) + ":" in labels.keys(): 
             volumes += 1
         else:
             volumes = 0
@@ -111,7 +140,7 @@ def main(file, title_len=60, title_size=8):
     
         # Текст названия CD
         # Заменяем '.' на '.'+'\n'
-        s = disk["Название программы/документа/документации:"].split('.')
+        s = disk[name].split('.')
         s = '.\n'.join(s)
 
         # Разбиваем строку на слова по пробельному символу (и символу новой строки)
@@ -133,7 +162,7 @@ def main(file, title_len=60, title_size=8):
         text.draw(win)
     
         # Текст с децимальным номером из реферата
-        text = graphics.Text(graphics.Point(224,125), disk["Децимальный номер (УДК): № версии, редакции:"])
+        text = graphics.Text(graphics.Point(224,125), disk[decimalNum])
         text.setSize(10)
         text.draw(win)
     
@@ -150,7 +179,7 @@ def main(file, title_len=60, title_size=8):
     
     
         # Пишем вид носителя
-        text = graphics.Text(graphics.Point(120,175), disk["Рассылка (общее кол-во дисков) (шт.):"])
+        text = graphics.Text(graphics.Point(120,175), disk[cdType])
         text.setSize(10)
         text.draw(win)        
     
@@ -185,7 +214,7 @@ def main(file, title_len=60, title_size=8):
     
         # Текст c контрольной суммой из реферата
         # Разбиваем КСумм на две строки
-        s = disk["Контрольная характеристика (сумма)"]
+        s = disk[ksum]
         l = len(s)
         s = '\n'.join([s[0:l//2], s[l//2::]])
     
@@ -250,7 +279,7 @@ def main(file, title_len=60, title_size=8):
         text.draw(win)                 
 
         # Вставляем регистрационный номер из реферата
-        text = graphics.Text(graphics.Point(225,380), disk["Регистрационный номер:"])
+        text = graphics.Text(graphics.Point(225,380), disk[regNum])
         text.setSize(8)
         text.draw(win) 
 
@@ -330,13 +359,15 @@ if len(sys.argv) < 2:
         print("Необходимо указать файл реферата!")
         print("For help please input 'python label.py help'")
         sys.exit()
-        
+
+# Если пользователь запросил справку        
 if sys.argv[1] == 'help':
-    print("Usage: >python label.py 'referat filename' 'title field length'(default to 60) 'title text size'(default to 8)")
+    print("""Usage: >python label.py 'referat filename' 'title field length'(default to 60)
+             'title text size'(default to 8)""")
     print("Example: >python label.py ref.docx 40 10")
 else:
     # Добавляем путь в SYSTEM PATH до Ghostscript под нужную архитектуру 
-    path = os.path.dirname(os.path.abspath(sys.argv[0]))                # Абсолютный путь до папки со скриптом label.py
+    path = os.path.dirname(os.path.abspath(sys.argv[0]))    # Абсолютный путь до папки со скриптом label.py
     
     # Определяем системную архитектуру и дополняем путь до папки с Ghostscript в зависимости от архитектуры
     if is_windows_64bit():

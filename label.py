@@ -3,6 +3,7 @@ import sys       # Работа с аргументами, переданным�
 import docx      # Работа с .docx файлами 
 import io
 import os
+import logging
 from PIL import Image
 
 
@@ -24,8 +25,9 @@ def main(file, title_len=60, title_size=8):
     
     try:
         document = docx.Document(file)  # Открытие docx файла
-    except Exception as error:
+    except Exception as err:
         print(f"Can't open {file}")
+        logging.error(str(err))
         sys.exit()
   
     labels = dict()   # Словарь с данными из считанного docx файла
@@ -68,8 +70,11 @@ def main(file, title_len=60, title_size=8):
             ksum = key
 
     # Проверяем, что все значения для полей диска присутствуют в реферате
-    if regNum and name and decimalNum and cdType and ksum:
-        pass      
+    try:
+        if regNum and name and decimalNum and cdType and ksum:
+            pass
+    except Exception as err:
+        logging.error(str(err))      
 
     while volumes:
 
@@ -77,7 +82,7 @@ def main(file, title_len=60, title_size=8):
        
         # Заполнение словаря тома 
         disks[volumes-1][regNum] = labels[regNum]
-       # 
+        
         disks[volumes-1][name] = labels[name] + ("." if labels[name][-1] != "." else "")        
         if "Том " + str(volumes) + ":" in labels.keys():
             disks[volumes-1][name] = disks[volumes-1][name]+ " " + labels["Том " + str(volumes) + ":"] + ("." if labels["Том " + str(volumes) + ":"][-1] != "." else "")
@@ -106,7 +111,7 @@ def main(file, title_len=60, title_size=8):
             volumes = 0
 
 
-    # Формируем обложку для каждого тома в 2х экземплярах - подлинних и дубликат
+    # Формируем обложку для каждого тома в 2х экземплярах - подлинник и дубликат
     for disk in disks:
     
         win = graphics.GraphWin("Окно для графики", 448, 448)
@@ -354,10 +359,15 @@ def main(file, title_len=60, title_size=8):
         win.close()
 
 
+# Включаем протоколирование ошибок и сообщений
+logging.basicConfig(filename='log.txt', level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
 # Проверяем, что скрипту передан в качестве аргумента файл реферата
 if len(sys.argv) < 2:
         print("Необходимо указать файл реферата!")
         print("For help please input 'python label.py help'")
+        logging.error('Не указан файл реферата!')
         sys.exit()
 
 # Если пользователь запросил справку        
@@ -380,6 +390,8 @@ else:
     app_path = os.path.join(path)
     os.environ["PATH"] += os.pathsep + app_path
 
+    logging.debug(' '.join(sys.argv[1:]))
+    
     # Запуск основного скрипта
     main(*sys.argv[1:])
 

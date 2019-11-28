@@ -26,7 +26,6 @@ def main(file, title_len=60, title_size=8):
     try:
         document = docx.Document(file)  # Открытие docx файла
     except Exception as err:
-        print(f"Can't open {file}")
         logging.error(str(err))
         sys.exit()
   
@@ -74,7 +73,8 @@ def main(file, title_len=60, title_size=8):
         if regNum and name and decimalNum and cdType and ksum:
             pass
     except Exception as err:
-        logging.error(str(err))      
+        logging.error(str(err))
+        sys.exit()      
 
     while volumes:
 

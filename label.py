@@ -1,9 +1,9 @@
 import graphics  # Отрисовка графики
-import sys  # Работа с аргументами, переданными скрипту
+import argparse  # Для работы с аргументами командной строки
 import docx  # Работа с .docx файлами
 import io
 import os
-import logging
+import logging # Для логирования
 from PIL import Image
 
 
@@ -366,38 +366,31 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
-# Проверяем, что скрипту передан в качестве аргумента файл реферата
-if len(sys.argv) < 2:
-    print("Необходимо указать файл реферата!")
-    print("For help please input 'python label.py help'")
-    logging.error("Не указан файл реферата!")
-    sys.exit()
+parser = argparse.ArgumentParser(description="Referat file to CD cover")
+parser.add_argument("ref_file", type=str, help="Path to referat file")
+parser.add_argument(
+    "-l", type=int, default=60, help="Maximum characters per title string, default=60"
+)
+parser.add_argument("-f", type=int, default=8, help="Title font size, default=8")
+args = parser.parse_args()
+# print(args.__dict__)
 
-# Если пользователь запросил справку
-if sys.argv[1] == "help":
-    print(
-        """Usage: >python label.py 'referat filename' 'title field length'(default to 60)
-             'title text size'(default to 8)"""
-    )
-    print("Example: >python label.py ref.docx 40 10")
+# Добавляем путь в SYSTEM PATH до Ghostscript под нужную архитектуру
+path = os.path.dirname(
+    os.path.abspath(args.ref_file)
+)  # Абсолютный путь до папки со скриптом label.py
+
+# Определяем системную архитектуру и дополняем путь до папки с Ghostscript в зависимости от архитектуры
+if is_windows_64bit():
+    path = path + r"\x64"
 else:
-    # Добавляем путь в SYSTEM PATH до Ghostscript под нужную архитектуру
-    path = os.path.dirname(
-        os.path.abspath(sys.argv[0])
-    )  # Абсолютный путь до папки со скриптом label.py
+    path = path + r"\x32"
 
-    # Определяем системную архитектуру и дополняем путь до папки с Ghostscript в зависимости от архитектуры
-    if is_windows_64bit():
-        path = path + r"\x64"
+# Модифицируем PATH
+app_path = os.path.join(path)
+os.environ["PATH"] += os.pathsep + app_path
 
-    else:
-        path = path + r"\x32"
+logging.debug(" ".join(str(args.__dict__)))
 
-    # Модифицируем PATH
-    app_path = os.path.join(path)
-    os.environ["PATH"] += os.pathsep + app_path
-
-    logging.debug(" ".join(sys.argv[1:]))
-
-    # Запуск основного скрипта
-    main(*sys.argv[1:])
+# Запуск основного скрипта
+main(*args.__dict__.values())

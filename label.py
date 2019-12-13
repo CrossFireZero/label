@@ -173,14 +173,14 @@ def main(file, title_len=60, title_size=8):
         val = ""  # Строка с ограничением в title_len символов
         n = 1  # Счетчик перехода на новую строку
         for word in string:
-            if len(val) + len(word) > int(title_len) * n:
+            if len(val) + len(word) > title_len * n:
                 val += "\n"
                 n += 1
             val += word
             val += " "
 
         # Текст "Название программы" disk["Название программы/документа/документации:"])
-        draw_text(win, graphics.Point(224, 85), val, int(title_size))
+        draw_text(win, graphics.Point(224, 85), val, title_size)
 
         # Текст с децимальным номером из реферата
         draw_text(win, graphics.Point(224, 125), disk[decimalNum], 10)
@@ -337,17 +337,17 @@ logging.basicConfig(
 )
 
 parser = argparse.ArgumentParser(description="Referat file to CD cover")
-parser.add_argument("ref_file", type=str, help="Path to referat file")
+parser.add_argument("file", type=str, help="Path to referat file")
 parser.add_argument(
-    "-l", type=int, default=60, help="Maximum characters per title string, default=60"
+    "-l", dest='title_len', type=int, default=60, help="Maximum characters per title string, default=60"
 )
-parser.add_argument("-f", type=int, default=8, help="Title font size, default=8")
+parser.add_argument("-f", dest='title_size', type=int, default=8, help="Title font size, default=8")
 args = parser.parse_args()
 # print(args.__dict__)
 
 # Добавляем путь в SYSTEM PATH до Ghostscript под нужную архитектуру
 path = os.path.dirname(
-    os.path.abspath(args.ref_file)
+    os.path.abspath(args.file)
 )  # Абсолютный путь до папки со скриптом label.py
 
 # Определяем системную архитектуру и дополняем путь до папки с Ghostscript в зависимости от архитектуры

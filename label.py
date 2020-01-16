@@ -1,23 +1,29 @@
-import graphics  # Отрисовка графики
-import argparse  # Для работы с аргументами командной строки
-import docx  # Работа с .docx файлами
+"""
+Создает PNG обложки для печати на CD-дисках
+в соответствии с переданным DOCX файлом реферата
+"""
+
 import io
-import os
-import logging  # Для логирования
+import os
+import sys
+import logging  # Для логирования
+import argparse  # Для работы с аргументами командной строки
+import graphics  # Отрисовка графики
+import docx  # Работа с .docx файлами
 from PIL import Image
 
 
-def is_windows_64bit():
+def is_windows_64bit():
     """ 
         Определяет архитектуру ОС.
         Возвращает True, если архитектура x64.
     """
-    if "PROCESSOR_ARCHITEW6432" in os.environ:
+    if "PROCESSOR_ARCHITEW6432" in os.environ:
         return True
     return os.environ["PROCESSOR_ARCHITECTURE"].endswith("64")
 
 
-def main(file, title_len=60, title_size=8):
+def main(file, title_len=60, title_size=8):
     """
     Заполняет словарь с данными из реферата 
     и формирует обложки для подлинника и дубликата CD
@@ -26,22 +32,23 @@ def main(file, title_len=60, title_size=8):
     title_size - размер шрифта названия CD
     """
 
-    def draw_text(w, p, t, s):
+    def draw_text(win, point, text_string, text_size):
         """ 
         Отрисовывает текст
-        w - graphics.GraphWin - холст, на котором будет отрисован текст 
-        p - graphics.Point - координаты центра прямоугольника в котором
+        win - graphics.GraphWin - холст, на котором будет отрисован текст 
+        point - graphics.Point - координаты центра прямоугольника в котором
                              будет отрисован текст
-        t - str           - текст для отрисовки ()
-        s - int           - размер шрифта текста
-        """
-        text = graphics.Text(p, t)
-        text.setSize(s)
-        text.draw(w)
+        text_string - str           - текст для отрисовки ()
+        text_size - int           - размер шрифта текста
+        """
+        
+        text = graphics.Text(point, text_string)
+        text.setSize(text_size)
+        text.draw(win)
 
-    try:
+    try:
         document = docx.Document(file)  # Открытие docx файла
-    except Exception as err:
+    except Exception as err:
         logging.error(str(err))
         sys.exit()
 
@@ -50,10 +57,10 @@ def main(file, title_len=60, title_size=8):
     table = document.tables[0]  # Вынимаем таблицу с данными
 
     # Перебираем строки таблицы table и заполняем текстом из полей таблицы словарь labels
-    for row in table.rows:
+    for row in table.rows:
         # Убираем символы переноса строк из полей "Ключ"
         key = row.cells[1].text.replace("\n", " ")
-        while key in labels.keys():
+        while key in labels.keys():
             key = key + "_"
         labels[key] = row.cells[2].text
 
@@ -63,31 +70,31 @@ def main(file, title_len=60, title_size=8):
     disks = []
 
     # Находим необходимые строки в таблице реферата
-    for key in labels.keys():
-        if "регистрационный" in key.lower():
+    for key in labels:
+        if "регистрационный" in key.lower():
             regNum = key
             continue
-        elif "название" in key.lower():
+        elif "название" in key.lower():
             name = key
             continue
-        elif "децимальный" in key.lower():
+        elif "децимальный" in key.lower():
             decimalNum = key
             continue
-        elif "рассылка" in key.lower():
+        elif "рассылка" in key.lower():
             cdType = key
             continue
-        elif "контрольная" in key.lower():
+        elif "контрольная" in key.lower():
             ksum = key
 
     # Проверяем, что все значения для полей диска присутствуют в реферате
-    try:
-        if regNum and name and decimalNum and cdType and ksum:
+    try:
+        if regNum and name and decimalNum and cdType and ksum:
             pass
-    except Exception as err:
+    except Exception as err:
         logging.error(str(err))
         sys.exit()
 
-    while volumes:
+    while volumes:
 
         disks.append(dict())  # Добавляем новый словарь для тома
 
@@ -95,21 +102,19 @@ def main(file, title_len=60, title_size=8):
         disks[volumes - 1][regNum] = labels[regNum]
 
         disks[volumes - 1][name] = labels[name] + (
-            "." if labels[name][-1] != "." else ""
-        )
-        if "Том " + str(volumes) + ":" in labels.keys():
+            "." if labels[name][-1] != "." else "")
+            
+        if "Том " + str(volumes) + ":" in labels:
             disks[volumes - 1][name] = (
                 disks[volumes - 1][name]
                 + " "
                 + labels["Том " + str(volumes) + ":"]
-                + ("." if labels["Том " + str(volumes) + ":"][-1] != "." else "")
-            )
+                + ("." if labels["Том " + str(volumes) + ":"][-1] != "." else ""))
 
         disks[volumes - 1][decimalNum] = labels[decimalNum]
-        if "Том " + str(volumes) + ":_" in labels.keys():
+        if "Том " + str(volumes) + ":_" in labels:
             disks[volumes - 1][decimalNum] = (
-                disks[volumes - 1][decimalNum] + labels["Том " + str(volumes) + ":_"]
-            )
+                disks[volumes - 1][decimalNum] + labels["Том " + str(volumes) + ":_"])
 
         # Находим тип носителя (CD, DVD и т.п.)
         words = labels[cdType].split()
@@ -121,13 +126,12 @@ def main(file, title_len=60, title_size=8):
         disks[volumes - 1][cdType] = s
 
         disks[volumes - 1][ksum] = labels[ksum]
-        if "Том " + str(volumes) + ":___" in labels.keys():
+        if "Том " + str(volumes) + ":___" in labels:
             disks[volumes - 1][ksum] = (
-                disks[volumes - 1][ksum] + labels["Том " + str(volumes) + ":___"]
-            )
+                disks[volumes - 1][ksum] + labels["Том " + str(volumes) + ":___"])
 
         # Если находим метку "Том Х:" - увеличиваем кол-во томов к печати
-        if "Том " + str(volumes + 1) + ":" in labels.keys():
+        if "Том " + str(volumes + 1) + ":" in labels:
             volumes += 1
         else:
             volumes = 0
@@ -169,7 +173,8 @@ def main(file, title_len=60, title_size=8):
         # Разбиваем строку на слова по пробельному символу (и символу новой строки)
         string = s.split()
 
-        # Ограничиваем длину строки title_len(60 по дефолту) символами, после чего начинаем печать на новой строке
+        # Ограничиваем длину строки title_len(60 по дефолту) символами, 
+        # после чего начинаем печать на новой строке
         val = ""  # Строка с ограничением в title_len символов
         n = 1  # Счетчик перехода на новую строку
         for word in string:
